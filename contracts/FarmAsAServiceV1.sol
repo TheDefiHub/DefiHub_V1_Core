@@ -9,10 +9,12 @@ import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import '@openzeppelin/contracts/utils/Address.sol';
 
 contract FarmAsAServiceV1 is ReentrancyGuard {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
+    using Address for address;
 
     /*********************************
         Contract State variables 
