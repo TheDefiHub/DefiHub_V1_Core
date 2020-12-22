@@ -108,7 +108,7 @@ contract NftSharesV1 is ERC20 {
         initialSharePrice = _initialSharePrice;
         totalAmountOfNftShares = _totalAmountOfNftShares;
         intialShareOfferingDurationInDays = _durationInDays;
-        uint durationToAdd = _durationInDays * 86400;
+        uint durationToAdd = _durationInDays.mul(86400);
         endOfInitalShareOffering = block.timestamp.add(durationToAdd);
         initialShareOfferingStartTime = block.timestamp;
 
@@ -117,9 +117,21 @@ contract NftSharesV1 is ERC20 {
 
     }
 
-    /***********************
-     external view returns 
-    ***********************/
+    /***************************
+        external view returns 
+    ****************************/
+
+    function sharesLeftInIso() external view returns (uint) {
+        return totalAmountOfNftShares - totalSupply();
+    }
+
+    function timeLeftInIso() external view returns (uint) {
+        return block.timestamp.sub(initialShareOfferingStartTime.add(intialShareOfferingDurationInDays.mul(86400)));
+    }
+
+    /***************************
+              Fucntions
+    ****************************/
 
     // Buy a share of the NFT in the initial share offering
     function buyNftShare(uint amountOfSharesToBuy) external isoNotEnded {
@@ -160,7 +172,7 @@ contract NftSharesV1 is ERC20 {
 
     // increase the duration of the intial offering
     function increaseIsoDuration(uint extraDays) external onlyAdmin isoNotEnded {
-        uint timeToAdd = extraDays * 86400;
+        uint timeToAdd = extraDays.mul(86400);
         intialShareOfferingDurationInDays = intialShareOfferingDurationInDays.add(extraDays);
         endOfInitalShareOffering.add(timeToAdd);
         emit IsoDurationIncreaed(extraDays);
