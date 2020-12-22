@@ -19,7 +19,7 @@ contract DefiHubToken is ERC20 {
 
     function mint(address account, uint amount) public {
         require(minters[msg.sender], "!minter");
-        require(totalSupply() <= maxSupply, "!minter");
+        require(totalSupply() + amount <= maxSupply, "!minter");
         _mint(account, amount);
     }
 
