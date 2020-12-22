@@ -56,6 +56,7 @@ contract FarmAsAServiceV1Factory {
         // Create the farm
         FarmAsAServiceV1 createdFarm = new FarmAsAServiceV1(
             address(this),
+            msg.sender,
             _rewardsToken,
             _stakingToken,
             _rewardsDurationInDays,
@@ -68,6 +69,7 @@ contract FarmAsAServiceV1Factory {
             // If there is no DefiHub farm create it
             FarmAsAServiceV1 defiHubFarm = new FarmAsAServiceV1(
                 address(this),
+                msg.sender,
                 _rewardsToken,
                 defiHubTokenAddress,
                 _rewardsDurationInDays,

@@ -2,6 +2,8 @@
 
 pragma solidity ^0.7.3;
 
+import './DefihubConstants.sol';
+
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -16,6 +18,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         Contract State variables 
     *********************************/
 
+    address farmFactory;
     address farmAdmin;
 
     IERC20 public rewardsToken;
@@ -37,8 +40,8 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
             Modifiers 
     ***********************/
 
-    modifier onlyAdmin() {
-        require(msg.sender == farmAdmin, 'Only the farm admin is allowed to do this!');
+    modifier onlyFactory() {
+        require(msg.sender == farmFactory, 'Only the farm factory is allowed to do this!');
         _;
     }
 
@@ -57,6 +60,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
     }
 
     constructor(
+        address _farmFactory,
         address _farmAdmin,
         address _rewardsToken,
         address _stakingToken,
@@ -68,11 +72,12 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         rewardsToken = IERC20(_rewardsToken);
         stakingToken = IERC20(_stakingToken);
 
-        // Set farm admin
-        farmAdmin = _farmAdmin;
+        // Set farm factory and admin
+        farmFactory = _farmFactory;
+        farmAdmin = _farmAdmin
 
         // Set farm duration
-        rewardsDuration = _rewardsDurationInDays * 86400;
+        rewardsDuration = _rewardsDurationInDays.mul(DefihubConstants.DAY_MULTIPLIER);
         farmingEndDate = block.timestamp.add(rewardsDuration);
         rawardsTokenDecimals = 10**_rawardsTokenDecimals;
         modifyRewardAmount(_RewardsAmount);
@@ -144,9 +149,14 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
     /**************************
         Only admin functions 
     **************************/
-    function modifyRewardAmount(uint reward) public onlyAdmin updateReward(address(0)) {
+    function modifyRewardAmount(uint reward) public onlyFactory updateReward(address(0)) {
         require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
+        require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
+        
+        // Transfer the rewards to the contract
+        rewardsToken.safeTransferFrom(farmAdmin, address(this), reward);
 
+        // Calculate the rewardRate
         uint remainingTime = farmingEndDate.sub(block.timestamp);
         uint rewardsLeftOver = remainingTime.mul(rewardRate);
         rewardRate = reward.add(rewardsLeftOver).div(rewardsDuration);
