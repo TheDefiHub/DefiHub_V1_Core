@@ -34,6 +34,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
 
     mapping(address => uint) public userRewardPerTokenPaid;
     mapping(address => uint) public rewards;
+    address[] public farmers;
 
     uint private _totalSupply;
     mapping(address => uint) private _balances;
@@ -48,15 +49,8 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
     }
 
     modifier updateReward(address account) {
-        if (block.timestamp >= farmingEndDate) {
-            rewardRate = 0;
-        }
-
         rewardPerTokenStored = rewardPerToken();
-
-        if (lastUpdateTime != 0) {
-            lastUpdateTime = farmingDurationLeft();
-        }
+        lastUpdateTime = lastTimeRewardApplicable();
 
         if (account != address(0)) {
             rewards[account] = earned(account);
@@ -105,7 +99,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         return _balances[account];
     }
 
-    function farmingDurationLeft() public view returns (uint) {
+    function lastTimeRewardApplicable() public view returns (uint) {
         return Math.min(block.timestamp, farmingEndDate);
     }
 
@@ -114,12 +108,16 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
             return rewardPerTokenStored;
         }
         return rewardPerTokenStored.add(
-            farmingDurationLeft().sub(lastUpdateTime).mul(rewardRate).mul(rawardsTokenDecimals).div(_totalSupply)
+            lastTimeRewardApplicable().sub(lastUpdateTime).mul(rewardRate).mul(rawardsTokenDecimals).div(_totalSupply)
         );
     }
 
     function earned(address account) public view returns (uint) {
-        return _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(rawardsTokenDecimals).add(rewards[account]);
+        uint calculatedEarned = _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(rawardsTokenDecimals).add(rewards[account]);
+
+        // some rare case the reward can be slightly bigger than real number, we need to check against how much we have left in pool
+        uint poolBalance = rewardsToken.balanceOf(address(this));
+        return (calculatedEarned < poolBalance) ? calculatedEarned : poolBalance;
     }
 
     /**************************
@@ -134,6 +132,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
 
         _totalSupply = _totalSupply.add(stakingAmount);
         _balances[msg.sender] = _balances[msg.sender].add(stakingAmount);
+        farmers.push(msg.sender);
 
         stakingToken.safeTransferFrom(msg.sender, address(this), stakingAmount);
         stakingToken.safeTransferFrom(msg.sender, DefihubConstants.FEE_ADDRESS, fee);
@@ -171,6 +170,16 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
         require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
         
+
+        // If there already is a reward rate, we need to add the current earned values to the rewards
+        // Otherwise the rewards made in the past would be lost when the factory adds funds
+        // This needs to be done before the rewardRate and lastUpdateTime are updated
+        if (rewardRate != 0) {
+            for(uint index = 0; index < farmers.length; index++){
+                rewards[farmers[index]] = earned(farmers[index]);
+            }
+        }
+
         // Transfer the rewards to the contract
         rewardsToken.safeTransferFrom(farmAdmin, address(this), reward);
 
@@ -178,6 +187,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         uint remainingTime = farmingEndDate.sub(block.timestamp);
         uint rewardsLeftOver = remainingTime.mul(rewardRate);
         rewardRate = reward.add(rewardsLeftOver).div(rewardsDuration);
+
 
         // Ensure the provided reward amount is not more than the balance in the contract.
         // This keeps the reward rate in the right range, preventing overflows due to
@@ -187,9 +197,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         require(rewardRate <= balance.div(rewardsDuration), "Provided reward too high");
 
         // The first time we add rewards we want to set lastUpdateTime so rewards per token will be zero untill someone stakes
-        if (lastUpdateTime == 0) {
-            lastUpdateTime = block.timestamp;
-        }
+        lastUpdateTime = block.timestamp;
     }
 
     /**************************
