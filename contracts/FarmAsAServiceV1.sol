@@ -91,6 +91,10 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         return _totalSupply;
     }
 
+    function totalRewardsLeft() external view returns (uint) {
+        return rewardsToken.balanceOf(address(this));
+    }
+
     function balanceOf(address account) external view returns (uint) {
         return _balances[account];
     }
@@ -118,14 +122,22 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
 
     function stake(uint amount) external nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
-        _totalSupply = _totalSupply.add(amount);
-        _balances[msg.sender] = _balances[msg.sender].add(amount);
-        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        uint fee = amount.mul(DefihubConstants.FAAS_ENTRANCE_FEE_BP).div(DefihubConstants.BASE_POINTS);
+        uint stakingAmount = amount.sub(fee);
+
+        _totalSupply = _totalSupply.add(stakingAmount);
+        _balances[msg.sender] = _balances[msg.sender].add(stakingAmount);
+
+        stakingToken.safeTransferFrom(msg.sender, address(this), stakingAmount);
+        stakingToken.safeTransferFrom(msg.sender, DefihubConstants.FEE_ADDRESS, fee);
         emit Staked(msg.sender, amount);
     }
 
     function withdraw(uint amount) public nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
+        require(_balances[msg.sender] >= amount, "You want to withdraw more then you own");
+        
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
         stakingToken.safeTransfer(msg.sender, amount);

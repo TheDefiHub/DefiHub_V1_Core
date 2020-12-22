@@ -140,7 +140,7 @@ contract NftSharesV1 is ERC20 {
         require(totalSupply() + amountOfSharesToBuy <= totalAmountOfNftShares, 'There are not enough shares left.');
 
         uint totalPriceForShares = amountOfSharesToBuy * initialSharePrice;
-        uint feeAmount = totalPriceForShares.mul(DefihubConstants.NFT_SHARES_FEE_BP).div(10000);
+        uint feeAmount = totalPriceForShares.mul(DefihubConstants.NFT_SHARES_FEE_BP).div(DefihubConstants.BASE_POINTS);
 
         tokenToBuyWIth.safeTransferFrom(msg.sender, DefihubConstants.FEE_ADDRESS, feeAmount);
         tokenToBuyWIth.safeTransferFrom(msg.sender, admin, totalPriceForShares);
@@ -207,7 +207,7 @@ contract NftSharesV1 is ERC20 {
         require(buyOrders[buyOrder].amountToBuy >= amountOfSharesToSell, 'This order does not want to buy enough shares.');
         
         uint totalAmountToReceive = amountOfSharesToSell * buyOrders[buyOrder].pricePerShare;
-        uint feeAmount = totalAmountToReceive.mul(DefihubConstants.NFT_SHARES_FEE_BP).div(10000);
+        uint feeAmount = totalAmountToReceive.mul(DefihubConstants.NFT_SHARES_FEE_BP).div(DefihubConstants.BASE_POINTS);
         uint amountForSeller = totalAmountToReceive.sub(feeAmount);
 
         transferFrom(msg.sender, buyOrder, amountOfSharesToSell);
