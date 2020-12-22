@@ -29,7 +29,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
     uint public farmingEndDate = 0;
     uint public rewardRate = 0;
     uint public rewardsDuration = 0;
-    uint public lastUpdateTime;
+    uint public lastUpdateTime = 0;
     uint public rewardPerTokenStored;
 
     mapping(address => uint) public userRewardPerTokenPaid;
@@ -53,7 +53,11 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         }
 
         rewardPerTokenStored = rewardPerToken();
-        lastUpdateTime = farmingDurationLeft();
+
+        if (lastUpdateTime != 0) {
+            lastUpdateTime = farmingDurationLeft();
+        }
+
         if (account != address(0)) {
             rewards[account] = earned(account);
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
@@ -182,7 +186,10 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         uint balance = rewardsToken.balanceOf(address(this));
         require(rewardRate <= balance.div(rewardsDuration), "Provided reward too high");
 
-        lastUpdateTime = block.timestamp;
+        // The first time we add rewards we want to set lastUpdateTime so rewards per token will be zero untill someone stakes
+        if (lastUpdateTime == 0) {
+            lastUpdateTime = block.timestamp;
+        }
     }
 
     /**************************
