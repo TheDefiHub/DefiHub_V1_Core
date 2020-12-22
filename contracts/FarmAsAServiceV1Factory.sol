@@ -10,6 +10,7 @@
 pragma solidity ^0.7.1;
 
 import "./FarmAsAServiceV1.sol";
+import "./IFarmAsAServiceV1.sol";
 
 // Openzeppelin import
 import "@openzeppelin/contracts/math/Math.sol";
@@ -83,7 +84,7 @@ contract FarmAsAServiceV1Factory {
             farmAdmins[createdDefiHubFarmAddress] = msg.sender;
         } else {
             // If there already is a farm add the fund to it
-            FarmAsAServiceV1(createdTokenFarms[_rewardsToken][defiHubTokenAddress]).modifyRewardAmount(rewardsForDefiHubFarms);
+            IFarmAsAServiceV1(createdTokenFarms[_rewardsToken][defiHubTokenAddress]).modifyRewardAmount(rewardsForDefiHubFarms);
             emit rewardsAdded(rewardsForDefiHubFarms);
         }
         
@@ -98,15 +99,15 @@ contract FarmAsAServiceV1Factory {
 
     // Adding funds goes in a 50/50 split between the DefiHun token farm and the farm with the other token
     // Adding funds will also increase the farm duration. 
-    // If the initial amount was 10K tokens and 3 months, if you add another 10K you will add 3 months
+    // If the initial amount was 30K tokens and 3 months, if you add another 10K you will add another month
     function addRewards(address farmToUpdate, uint extraRewards) external {
         require(farmAdmins[farmToUpdate] == msg.sender, 'You are not the admin of this farm');
         
         uint rewardsForDefiHubFarms = extraRewards.div(2);
-        uint rewardsForDeployerFarm = extraRewards - rewardsForDefiHubFarms;
+        uint rewardsForDeployerFarm = extraRewards.sub(rewardsForDefiHubFarms);
             
-        FarmAsAServiceV1(farmToUpdate).modifyRewardAmount(rewardsForDeployerFarm);
-        FarmAsAServiceV1(defiHubFarmCouples[farmToUpdate]).modifyRewardAmount(rewardsForDefiHubFarms);
+        IFarmAsAServiceV1(farmToUpdate).modifyRewardAmount(rewardsForDeployerFarm);
+        IFarmAsAServiceV1(defiHubFarmCouples[farmToUpdate]).modifyRewardAmount(rewardsForDefiHubFarms);
         emit rewardsAdded(extraRewards);
     }
 

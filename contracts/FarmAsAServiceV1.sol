@@ -3,6 +3,7 @@
 pragma solidity ^0.7.3;
 
 import './DefihubConstants.sol';
+import './IFarmAsAServiceV1.sol';
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/Math.sol";
@@ -11,7 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import '@openzeppelin/contracts/utils/Address.sol';
 
-contract FarmAsAServiceV1 is ReentrancyGuard {
+contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
     using Address for address;
@@ -38,7 +39,6 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
 
     mapping(address => uint) public userRewardPerTokenPaid;
     mapping(address => uint) public rewards;
-    address[] public farmers;
 
     uint private _totalSupply;
     mapping(address => uint) private _balances;
@@ -100,23 +100,27 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
     /**************************
            view returns 
     **************************/
-
+    // Returns the total supply added to the farm
     function totalSupply() external view returns (uint) {
         return _totalSupply;
     }
 
+    // Rewards left in the contract 
     function totalRewardsLeft() external view returns (uint) {
         return rewardsToken.balanceOf(address(this));
     }
 
+    // Staked balnce of an address
     function balanceOf(address account) external view returns (uint) {
         return _balances[account];
     }
 
+    // Returns the smallers number : current timestamp vs. farmEndDate
     function lastTimeRewardApplicable() public view returns (uint) {
         return Math.min(block.timestamp, farmingEndDate);
     }
 
+    // Returns the reward per token stored
     function rewardPerToken() public view returns (uint) {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
@@ -126,6 +130,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
         );
     }
 
+    // Returns the rewards earned for an address
     function earned(address account) public view returns (uint) {
         uint calculatedEarned = _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(rawardsTokenDecimals).add(rewards[account]);
 
@@ -139,45 +144,59 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
     /**************************
              Functions 
     **************************/
-
+    
+    // Stake your tokens and start farming
     function stake(uint amount) external nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
 
+        // Calculate the fee and the amount to stake
         uint fee = amount.mul(DefihubConstants.FAAS_ENTRANCE_FEE_BP).div(DefihubConstants.BASE_POINTS);
         uint stakingAmount = amount.sub(fee);
 
+        // Add staking amount to the balance and total supply 
         _totalSupply = _totalSupply.add(stakingAmount);
         _balances[msg.sender] = _balances[msg.sender].add(stakingAmount);
-        farmers.push(msg.sender);
 
+        // Transfer the staking amount to the contract and the fee to the fee address
         stakingToken.safeTransferFrom(msg.sender, address(this), stakingAmount);
         stakingToken.safeTransferFrom(msg.sender, DefihubConstants.FEE_ADDRESS, fee);
         emit Staked(msg.sender, amount);
     }
 
+    // Withdraw your tokens from the farm
     function withdraw(uint amount) public nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         require(_balances[msg.sender] >= amount, "You want to withdraw more then you own");
 
+        // Remove the amount from the total supply and address balance
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
+
+        // Transfer the tokens back to the address
         stakingToken.safeTransfer(msg.sender, amount);
-        totalRewardsWithdrawn = totalRewardsWithdrawn.add(amount);
         emit Withdrawn(msg.sender, amount);
     }
 
-    function getReward() public nonReentrant updateReward(msg.sender) {
+    function claimRewards() public nonReentrant updateReward(msg.sender) {
+        // Get the rewards ready to claim
         uint reward = rewards[msg.sender];
+
+        // If there are rewards to claim
         if (reward > 0) {
+            // Set user rewards to 0 and transfer the claimable rewards
             rewards[msg.sender] = 0;
             rewardsToken.safeTransfer(msg.sender, reward);
+
+            // Increase the total rewards claimed and emit an event for the user 
+            totalRewardsWithdrawn = totalRewardsWithdrawn.add(reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
 
+    // Withdraw and claim rewards
     function exit() external {
         withdraw(_balances[msg.sender]);
-        getReward();
+        claimRewards();
     }
 
 
@@ -187,7 +206,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
     **************************/
 
 
-    function modifyRewardAmount(uint reward) public onlyFactory updateReward(address(0)) {
+    function modifyRewardAmount(uint reward) public override onlyFactory updateReward(address(0)) {
         require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
         require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
         
