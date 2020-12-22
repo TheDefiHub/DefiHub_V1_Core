@@ -4,15 +4,15 @@ pragma solidity ^0.7.3;
 
 import '@openzeppelin/contracts/utils/Address.sol';
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
 
-contract DefiHubToken is ERC20, ERC20Detailed {
+contract DefiHubToken is ERC20 {
     using Address for address;
 
     address public governance;
-    uint maxSupply = 10000000 // 10 Million max supply
+    uint maxSupply = 10000000; // 10 Million max supply
+    mapping (address => bool) public minters;
 
-    constructor () public ERC20Detailed("DefiHub", "DFH", 18) {
+    constructor () ERC20("DefiHub", "DFH") {
         governance = msg.sender;
         minters[msg.sender] = true;
     }
