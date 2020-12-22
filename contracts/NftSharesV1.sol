@@ -10,6 +10,7 @@
 
 pragma solidity ^0.7.3;
 
+import './DefihubConstants.sol';
 
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import '@openzeppelin/contracts/token/ERC20/SafeERC20.sol';
@@ -108,7 +109,7 @@ contract NftSharesV1 is ERC20 {
         initialSharePrice = _initialSharePrice;
         totalAmountOfNftShares = _totalAmountOfNftShares;
         intialShareOfferingDurationInDays = _durationInDays;
-        uint durationToAdd = _durationInDays.mul(86400);
+        uint durationToAdd = _durationInDays.mul(DefihubConstants.DAY_MULTIPLIER);
         endOfInitalShareOffering = block.timestamp.add(durationToAdd);
         initialShareOfferingStartTime = block.timestamp;
 
@@ -139,6 +140,9 @@ contract NftSharesV1 is ERC20 {
         require(totalSupply() + amountOfSharesToBuy <= totalAmountOfNftShares, 'There are not enough shares left.');
 
         uint totalPriceForShares = amountOfSharesToBuy * initialSharePrice;
+        uint feeAmount = totalPriceForShares.mul(DefihubConstants.NFT_SHARES_FEE_BP).div(10000);
+
+        tokenToBuyWIth.safeTransferFrom(msg.sender, DefihubConstants.FEE_ADDRESS, feeAmount);
         tokenToBuyWIth.safeTransferFrom(msg.sender, admin, totalPriceForShares);
         _mint(msg.sender, amountOfSharesToBuy);
         emit boughtSharesFromIso(msg.sender, amountOfSharesToBuy, totalPriceForShares);
@@ -149,12 +153,6 @@ contract NftSharesV1 is ERC20 {
         require(adminHasRedeemedProfits == false, 'You can only redeem the profits and left overs once.');
 
         uint unsoldRftShares = totalAmountOfNftShares.sub(totalSupply());
-        uint soldShared = totalAmountOfNftShares - unsoldRftShares;
-        uint payOutAmount = soldShared * initialSharePrice;
-
-        if (payOutAmount > 0) {
-            tokenToBuyWIth.safeTransferFrom(address(this), admin, payOutAmount);
-        }
 
         if (unsoldRftShares > 0 && totalSupply() > 0) {
             _mint(admin, unsoldRftShares);
@@ -172,7 +170,7 @@ contract NftSharesV1 is ERC20 {
 
     // increase the duration of the intial offering
     function increaseIsoDuration(uint extraDays) external onlyAdmin isoNotEnded {
-        uint timeToAdd = extraDays.mul(86400);
+        uint timeToAdd = extraDays.mul(DefihubConstants.DAY_MULTIPLIER);
         intialShareOfferingDurationInDays = intialShareOfferingDurationInDays.add(extraDays);
         endOfInitalShareOffering.add(timeToAdd);
         emit IsoDurationIncreaed(extraDays);
@@ -209,9 +207,12 @@ contract NftSharesV1 is ERC20 {
         require(buyOrders[buyOrder].amountToBuy >= amountOfSharesToSell, 'This order does not want to buy enough shares.');
         
         uint totalAmountToReceive = amountOfSharesToSell * buyOrders[buyOrder].pricePerShare;
+        uint feeAmount = totalAmountToReceive.mul(DefihubConstants.NFT_SHARES_FEE_BP).div(10000);
+        uint amountForSeller = totalAmountToReceive.sub(feeAmount);
 
         transferFrom(msg.sender, buyOrder, amountOfSharesToSell);
-        tokenToBuyWIth.safeTransfer(msg.sender, totalAmountToReceive);
+        tokenToBuyWIth.safeTransfer(msg.sender, amountForSeller);
+        tokenToBuyWIth.safeTransfer(DefihubConstants.FEE_ADDRESS, feeAmount);
         buyOrders[buyOrder].amountToBuy = buyOrders[buyOrder].amountToBuy.sub(amountOfSharesToSell);
         emit NftShareSold(totalAmountToReceive, amountOfSharesToSell);
     }
