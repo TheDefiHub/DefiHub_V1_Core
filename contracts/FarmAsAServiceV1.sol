@@ -74,7 +74,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
 
         // Set farm factory and admin
         farmFactory = _farmFactory;
-        farmAdmin = _farmAdmin
+        farmAdmin = _farmAdmin;
 
         // Set farm duration
         rewardsDuration = _rewardsDurationInDays.mul(DefihubConstants.DAY_MULTIPLIER);
@@ -137,7 +137,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard {
     function withdraw(uint amount) public nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         require(_balances[msg.sender] >= amount, "You want to withdraw more then you own");
-        
+
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
         stakingToken.safeTransfer(msg.sender, amount);
