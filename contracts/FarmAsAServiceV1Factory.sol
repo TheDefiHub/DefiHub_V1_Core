@@ -97,13 +97,13 @@ contract FarmAsAServiceV1Factory {
         return [address(createdFarm), address(createdTokenFarms[_rewardsToken][defiHubTokenAddress])];
     }
 
-    // Adding funds goes in a 50/50 split between the DefiHun token farm and the farm with the other token
+    // Adding funds goes in a 20/80 split between the DefiHun token farm and the farm with the other token
     // Adding funds will also increase the farm duration. 
     // If the initial amount was 30K tokens and 3 months, if you add another 10K you will add another month
     function addRewards(address farmToUpdate, uint extraRewards) external {
         require(farmAdmins[farmToUpdate] == msg.sender, 'You are not the admin of this farm');
         
-        uint rewardsForDefiHubFarms = extraRewards.div(2);
+        uint rewardsForDefiHubFarms = extraRewards.div(5);
         uint rewardsForDeployerFarm = extraRewards.sub(rewardsForDefiHubFarms);
             
         IFarmAsAServiceV1(farmToUpdate).modifyRewardAmount(rewardsForDeployerFarm);
