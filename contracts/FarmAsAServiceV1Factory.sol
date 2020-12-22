@@ -84,6 +84,7 @@ contract FarmAsAServiceV1Factory {
         } else {
             // If there already is a farm add the fund to it
             FarmAsAServiceV1(createdTokenFarms[_rewardsToken][defiHubTokenAddress]).modifyRewardAmount(rewardsForDefiHubFarms);
+            emit rewardsAdded(rewardsForDefiHubFarms);
         }
         
         // Set all the mappings
@@ -92,11 +93,12 @@ contract FarmAsAServiceV1Factory {
         farmAdmins[createdFarmAddress] = msg.sender;
         defiHubFarmCouples[createdFarmAddress] = createdTokenFarms[_rewardsToken][defiHubTokenAddress];
         defiHubFarmCouples[createdTokenFarms[_rewardsToken][defiHubTokenAddress]] = createdFarmAddress;
-        emit FarmsCreated(address(createdFarm), address(createdTokenFarms[_rewardsToken][defiHubTokenAddress]));
         return [address(createdFarm), address(createdTokenFarms[_rewardsToken][defiHubTokenAddress])];
     }
 
     // Adding funds goes in a 50/50 split between the DefiHun token farm and the farm with the other token
+    // Adding funds will also increase the farm duration. 
+    // If the initial amount was 10K tokens and 3 months, if you add another 10K you will add 3 months
     function addRewards(address farmToUpdate, uint extraRewards) external {
         require(farmAdmins[farmToUpdate] == msg.sender, 'You are not the admin of this farm');
         
@@ -111,7 +113,6 @@ contract FarmAsAServiceV1Factory {
     /**************************
              Events 
     **************************/
-    event FarmsCreated(address farm1, address farm2);
     event rewardsAdded(uint amount);
 
 
