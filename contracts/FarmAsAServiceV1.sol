@@ -52,6 +52,11 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         _;
     }
 
+    modifier onlyAdmin() {
+        require(msg.sender == farmAdmin, 'Only the farm admin is allowed to do this!');
+        _;
+    }
+
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
@@ -90,7 +95,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         rewardsDuration = _rewardsDurationInDays.mul(DefihubConstants.DAY_MULTIPLIER);
         farmingEndDate = block.timestamp.add(rewardsDuration);
         rawardsTokenDecimals = 10**_rawardsTokenDecimals;
-        modifyRewardAmount(_RewardsAmount);
+        increaseRewardsAndFarmDuration(_RewardsAmount);
     }
 
 
@@ -172,6 +177,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
 
         // Transfer the tokens back to the address
         stakingToken.safeTransfer(msg.sender, amount);
+        claimRewards();
         emit Withdrawn(msg.sender, amount);
     }
 
@@ -189,28 +195,21 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         }
     }
 
-    // Withdraw and claim rewards
-    function exit() external {
-        withdraw(_balances[msg.sender]);
-        claimRewards();
-    }
-
-
 
     /**************************
        Only factory functions 
     **************************/
 
-
-    function modifyRewardAmount(uint reward) public override onlyFactory updateReward(address(0)) {
+    // Increase the farm rewards and reset the farm duration
+    function increaseRewardsAndFarmDuration(uint reward) public override onlyFactory updateReward(address(0)) {
         require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
         require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
         
         if (rewardRate == 0) {
             rewardRate = reward.div(rewardsDuration);
         } else {
-            uint256 remaining = farmingEndDate.sub(block.timestamp);
-            uint256 leftover = remaining.mul(rewardRate);
+            uint remaining = farmingEndDate.sub(block.timestamp);
+            uint leftover = remaining.mul(rewardRate);
             rewardRate = reward.add(leftover).div(rewardsDuration);
         }
 
@@ -226,8 +225,51 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
 
         // The first time we add rewards we want to set lastUpdateTime so rewards per token will be zero untill someone stakes
         lastUpdateTime = block.timestamp;
+        farmingEndDate = block.timestamp.add(rewardsDuration);
     }
 
+    // Increase the farm rewards but leave the duration as is
+    function increaseRewards(uint reward) public override onlyFactory updateReward(address(0)) {
+        require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
+        require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
+        require(rewardRate != 0, 'First add rewards before increasing the emission rate by adding more rewards!');
+        
+        uint remainingRewardDuration = farmEndDate.sub(block.timestamp);
+        uint leftover = remainingRewardDuration.mul(rewardRate);
+        rewardRate = reward.add(leftover).div(remainingRewardDuration);
+
+        // Transfer the rewards to the contract
+        rewardsToken.safeTransferFrom(farmAdmin, address(this), reward);
+
+
+        // Ensure the provided reward amount is not more than the balance in the contract + the withdrawn amount.
+        // This keeps the reward rate in the right range, preventing overflows due to
+        // very high values of rewardRate in the earned and rewardsPerToken functions;
+        // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
+        require(rewardRate <= rewardsToken.balanceOf(address(this)).div(remainingRewardDuration), "Provided reward too high this will create overflow");
+
+        // The first time we add rewards we want to set lastUpdateTime so rewards per token will be zero untill someone stakes
+        lastUpdateTime = block.timestamp;
+    }
+
+
+
+    /**************************
+       Only factory functions 
+    **************************/
+
+    // In some cases a farm can have an X amount of time with no farmers while the farm is active
+    // If this is the case there will be left over rewards the admin can claim back
+    function withdrawLeftovers() public onlyAdmin {
+        require(block.timestamp > farmingEndDate, 'The farm needs to have ended before you can take out leftovers!');
+        require(_totalSupply == 0, 'All funds need to be withdrawn before you can claim leftovers!');
+        uint amountLeft = rewardsToken.balanceOf(address(this));
+        if (amountLeft > 0) {
+            rewardsToken.safeTransfer(msg.sender, amountLeft);
+            emit RewardPaid(msg.sender, amountLeft);
+        }
+
+    }
 
 
     /**************************

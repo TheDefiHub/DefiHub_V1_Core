@@ -84,7 +84,7 @@ contract FarmAsAServiceV1Factory {
             farmAdmins[createdDefiHubFarmAddress] = msg.sender;
         } else {
             // If there already is a farm add the fund to it
-            IFarmAsAServiceV1(createdTokenFarms[_rewardsToken][defiHubTokenAddress]).modifyRewardAmount(rewardsForDefiHubFarms);
+            IFarmAsAServiceV1(createdTokenFarms[_rewardsToken][defiHubTokenAddress]).increaseRewards(rewardsForDefiHubFarms);
             emit rewardsAdded(rewardsForDefiHubFarms);
         }
         
@@ -98,7 +98,9 @@ contract FarmAsAServiceV1Factory {
     }
 
     // Adding funds goes in a 20/80 split between the DefiHun token farm and the farm with the other token
-    function addRewards(address farmToUpdate, uint extraRewards) external {
+    // This function will also reset the farm duration to its initial duration.
+    // So if the farm lastes for 100 days, that will now run a 100 days after you called this function and added rewards
+    function addRewardsAndDuration(address farmToUpdate, uint extraRewards) external {
         require(farmAdmins[farmToUpdate] == msg.sender, 'You are not the admin of this farm');
         
         uint rewardsForDefiHubFarms = extraRewards.div(5);
@@ -106,8 +108,23 @@ contract FarmAsAServiceV1Factory {
 
         require(rewardsForDefiHubFarms + rewardsForDeployerFarm <= extraRewards, 'Provide an amount dividable by 5 without decimals to prevent overflow')
             
-        IFarmAsAServiceV1(farmToUpdate).modifyRewardAmount(rewardsForDeployerFarm);
-        IFarmAsAServiceV1(defiHubFarmCouples[farmToUpdate]).modifyRewardAmount(rewardsForDefiHubFarms);
+        IFarmAsAServiceV1(farmToUpdate).increaseRewardsAndFarmDuration(rewardsForDeployerFarm);
+        IFarmAsAServiceV1(defiHubFarmCouples[farmToUpdate]).increaseRewardsAndFarmDuration(rewardsForDefiHubFarms);
+        emit rewardsAdded(extraRewards);
+    }
+
+    // Adding funds goes in a 20/80 split between the DefiHun token farm and the farm with the other token
+    // You will add funds and increase the rewardRate with this function, the lefotover duration of the farm stays as is
+    function addRewardsWithoutAddingDuration(address farmToUpdate, uint extraRewards) external {
+        require(farmAdmins[farmToUpdate] == msg.sender, 'You are not the admin of this farm');
+        
+        uint rewardsForDefiHubFarms = extraRewards.div(5);
+        uint rewardsForDeployerFarm = extraRewards.sub(rewardsForDefiHubFarms);
+
+        require(rewardsForDefiHubFarms + rewardsForDeployerFarm <= extraRewards, 'Provide an amount dividable by 5 without decimals to prevent overflow')
+            
+        IFarmAsAServiceV1(farmToUpdate).increaseRewards(rewardsForDeployerFarm);
+        IFarmAsAServiceV1(defiHubFarmCouples[farmToUpdate]).increaseRewards(rewardsForDefiHubFarms);
         emit rewardsAdded(extraRewards);
     }
 
