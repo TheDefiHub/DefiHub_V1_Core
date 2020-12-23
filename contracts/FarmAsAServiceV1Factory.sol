@@ -106,7 +106,7 @@ contract FarmAsAServiceV1Factory {
         uint rewardsForDefiHubFarms = extraRewards.div(5);
         uint rewardsForDeployerFarm = extraRewards.sub(rewardsForDefiHubFarms);
 
-        require(rewardsForDefiHubFarms + rewardsForDeployerFarm <= extraRewards, 'Provide an amount dividable by 5 without decimals to prevent overflow')
+        require(rewardsForDefiHubFarms + rewardsForDeployerFarm <= extraRewards, 'Provide an amount dividable by 5 without decimals to prevent overflow');
             
         IFarmAsAServiceV1(farmToUpdate).increaseRewardsAndFarmDuration(rewardsForDeployerFarm);
         IFarmAsAServiceV1(defiHubFarmCouples[farmToUpdate]).increaseRewardsAndFarmDuration(rewardsForDefiHubFarms);
@@ -121,7 +121,7 @@ contract FarmAsAServiceV1Factory {
         uint rewardsForDefiHubFarms = extraRewards.div(5);
         uint rewardsForDeployerFarm = extraRewards.sub(rewardsForDefiHubFarms);
 
-        require(rewardsForDefiHubFarms + rewardsForDeployerFarm <= extraRewards, 'Provide an amount dividable by 5 without decimals to prevent overflow')
+        require(rewardsForDefiHubFarms + rewardsForDeployerFarm <= extraRewards, 'Provide an amount dividable by 5 without decimals to prevent overflow');
             
         IFarmAsAServiceV1(farmToUpdate).increaseRewards(rewardsForDeployerFarm);
         IFarmAsAServiceV1(defiHubFarmCouples[farmToUpdate]).increaseRewards(rewardsForDefiHubFarms);

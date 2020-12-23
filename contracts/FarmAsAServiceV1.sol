@@ -234,7 +234,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
         require(rewardRate != 0, 'First add rewards before increasing the emission rate by adding more rewards!');
         
-        uint remainingRewardDuration = farmEndDate.sub(block.timestamp);
+        uint remainingRewardDuration = farmingEndDate.sub(block.timestamp);
         uint leftover = remainingRewardDuration.mul(rewardRate);
         rewardRate = reward.add(leftover).div(remainingRewardDuration);
 
