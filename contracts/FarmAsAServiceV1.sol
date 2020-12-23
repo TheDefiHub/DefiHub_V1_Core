@@ -57,6 +57,11 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         _;
     }
 
+    modifier farmIsActive() {
+        require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
+        _;
+    }
+
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
@@ -149,7 +154,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     **************************/
     
     // Stake your tokens and start farming
-    function stake(uint amount) external nonReentrant updateReward(msg.sender) {
+    function stake(uint amount) external farmIsActive nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
 
         // Calculate the fee and the amount to stake
@@ -166,7 +171,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         emit Staked(msg.sender, amount);
     }
 
-    // Withdraw your tokens from the farm
+    // Withdraw your tokens from the farm and claimRewards
     function withdraw(uint amount) public nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         require(_balances[msg.sender] >= amount, "You want to withdraw more then you own");
@@ -181,6 +186,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         emit Withdrawn(msg.sender, amount);
     }
 
+    // Claim rewards
     function claimRewards() public nonReentrant updateReward(msg.sender) {
         // Get the rewards ready to claim
         uint reward = rewards[msg.sender];
@@ -201,8 +207,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     **************************/
 
     // Increase the farm rewards and reset the farm duration
-    function increaseRewardsAndFarmDuration(uint reward) public override onlyFactory updateReward(address(0)) {
-        require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
+    function increaseRewardsAndFarmDuration(uint reward) public override farmIsActive onlyFactory updateReward(address(0)) {
         require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
         
         if (rewardRate == 0) {
@@ -229,8 +234,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     }
 
     // Increase the farm rewards but leave the duration as is
-    function increaseRewards(uint reward) public override onlyFactory updateReward(address(0)) {
-        require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
+    function increaseRewards(uint reward) public override farmIsActive onlyFactory updateReward(address(0)) {
         require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
         require(rewardRate != 0, 'First add rewards before increasing the emission rate by adding more rewards!');
         
@@ -259,13 +263,14 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
 
     // In some cases a farm can have an X amount of time with no farmers while the farm is active
     // If this is the case there will be left over rewards the admin can claim back
+    // There can also be small left overs due to rondings in the calculations
     function withdrawLeftovers() public onlyAdmin {
         require(block.timestamp > farmingEndDate, 'The farm needs to have ended before you can take out leftovers!');
         require(_totalSupply == 0, 'All funds need to be withdrawn before you can claim leftovers!');
         uint amountLeft = rewardsToken.balanceOf(address(this));
         if (amountLeft > 0) {
-            rewardsToken.safeTransfer(msg.sender, amountLeft);
-            emit RewardPaid(msg.sender, amountLeft);
+            rewardsToken.safeTransfer(farmAdmin, amountLeft);
+            emit RewardPaid(farmAdmin, amountLeft);
         }
 
     }
