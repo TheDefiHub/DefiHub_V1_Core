@@ -9,7 +9,7 @@ contract DefiHubToken is ERC20 {
     using Address for address;
 
     address public governance;
-    uint maxSupply = 10000000; // 10 Million max supply
+    uint maxSupply = 10000000 * (10**18); // 10 Million max supply
     mapping (address => bool) public minters;
 
     constructor () ERC20("DefiHub", "DFH") {
