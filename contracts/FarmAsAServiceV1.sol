@@ -33,8 +33,6 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     uint public rewardRate = 0;
     uint public rewardsDuration = 0;
     uint public lastUpdateTime = 0;
-    uint public totalRewards = 0;
-    uint public totalRewardsWithdrawn = 0;
     uint public rewardPerTokenStored;
 
     mapping(address => uint) public userRewardPerTokenPaid;
@@ -187,8 +185,6 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
             rewards[msg.sender] = 0;
             rewardsToken.safeTransfer(msg.sender, reward);
 
-            // Increase the total rewards claimed and emit an event for the user 
-            totalRewardsWithdrawn = totalRewardsWithdrawn.add(reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
@@ -210,17 +206,12 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         require(block.timestamp <= farmingEndDate, 'The farm has already ended, you cannot add new rewards!');
         require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
         
-        // When we initially add the rewards we calculate the reward rate
         if (rewardRate == 0) {
             rewardRate = reward.div(rewardsDuration);
-        } 
-        
-        // In case there are extra rewards added we adjust the duration of the farm, we dont increase the rewardRate
-        // Increasing the rewardRate would mean adjusting all farmers rewards and this could become very expensive
-        // This also keeps the emission stable and by doing so not creating more selling pressure on the topen price
-        if (reward != 0) {
-            uint durationToAdd = rewardsDuration.div(totalRewards.div(reward));
-            rewardsDuration = rewardsDuration.add(durationToAdd);
+        } else {
+            uint256 remaining = farmingEndDate.sub(block.timestamp);
+            uint256 leftover = remaining.mul(rewardRate);
+            rewardRate = reward.add(leftover).div(rewardsDuration);
         }
 
         // Transfer the rewards to the contract
@@ -231,12 +222,10 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         // This keeps the reward rate in the right range, preventing overflows due to
         // very high values of rewardRate in the earned and rewardsPerToken functions;
         // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-        uint amountForPayouts = rewardsToken.balanceOf(address(this)).add(totalRewardsWithdrawn);
-        require(rewardRate <= amountForPayouts.div(rewardsDuration), "Provided reward too high this will create overflow");
+        require(rewardRate <= rewardsToken.balanceOf(address(this)).div(rewardsDuration), "Provided reward too high this will create overflow");
 
         // The first time we add rewards we want to set lastUpdateTime so rewards per token will be zero untill someone stakes
         lastUpdateTime = block.timestamp;
-        totalRewards = totalRewards.add(reward);
     }
 
 
