@@ -223,7 +223,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
         require(rewardRate <= rewardsToken.balanceOf(address(this)).div(rewardsDuration), "Provided reward too high this will create overflow");
 
-        // The first time we add rewards we want to set lastUpdateTime so rewards per token will be zero untill someone stakes
+        // Set last update time and reset farmingEndDate
         lastUpdateTime = block.timestamp;
         farmingEndDate = block.timestamp.add(rewardsDuration);
     }
@@ -248,7 +248,6 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
         require(rewardRate <= rewardsToken.balanceOf(address(this)).div(remainingRewardDuration), "Provided reward too high this will create overflow");
 
-        // The first time we add rewards we want to set lastUpdateTime so rewards per token will be zero untill someone stakes
         lastUpdateTime = block.timestamp;
     }
 
