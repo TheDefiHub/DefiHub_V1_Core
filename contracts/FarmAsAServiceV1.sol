@@ -119,8 +119,8 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     }
 
     // Staked balnce of an address
-    function balanceOf(address account) external view returns (uint) {
-        return _balances[account];
+    function balanceOf(address _account) external view returns (uint) {
+        return _balances[_account];
     }
 
     // Returns the smallers number : current timestamp vs. farmEndDate
