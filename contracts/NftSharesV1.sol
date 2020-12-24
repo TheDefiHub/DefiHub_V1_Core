@@ -135,17 +135,17 @@ contract NftSharesV1 is ERC20 {
     ****************************/
 
     // Buy a share of the NFT in the initial share offering
-    function buyNftShare(uint amountOfSharesToBuy) external isoNotEnded {
+    function buyNftShare(uint _amountOfSharesToBuy) external isoNotEnded {
         require(initialShareOfferingStartTime > 0, 'Nft initial share offering has not started yet.');
-        require(totalSupply() + amountOfSharesToBuy <= totalAmountOfNftShares, 'There are not enough shares left.');
+        require(totalSupply() + _amountOfSharesToBuy <= totalAmountOfNftShares, 'There are not enough shares left.');
 
-        uint totalPriceForShares = amountOfSharesToBuy * initialSharePrice;
+        uint totalPriceForShares = _amountOfSharesToBuy * initialSharePrice;
         uint feeAmount = totalPriceForShares.mul(DefihubConstants.NFT_SHARES_FEE_BP).div(DefihubConstants.BASE_POINTS);
 
         tokenToBuyWIth.safeTransferFrom(msg.sender, DefihubConstants.FEE_ADDRESS, feeAmount);
         tokenToBuyWIth.safeTransferFrom(msg.sender, admin, totalPriceForShares);
-        _mint(msg.sender, amountOfSharesToBuy);
-        emit boughtSharesFromIso(msg.sender, amountOfSharesToBuy, totalPriceForShares);
+        _mint(msg.sender, _amountOfSharesToBuy);
+        emit boughtSharesFromIso(msg.sender, _amountOfSharesToBuy, totalPriceForShares);
     }
 
     // Withdraw any ramaining shares after the initial share offering has ended
@@ -169,26 +169,26 @@ contract NftSharesV1 is ERC20 {
     }
 
     // increase the duration of the intial offering
-    function increaseIsoDuration(uint extraDays) external onlyAdmin isoNotEnded {
-        uint timeToAdd = extraDays.mul(DefihubConstants.DAY_MULTIPLIER);
-        intialShareOfferingDurationInDays = intialShareOfferingDurationInDays.add(extraDays);
+    function increaseIsoDuration(uint _extraDays) external onlyAdmin isoNotEnded {
+        uint timeToAdd = _extraDays.mul(DefihubConstants.DAY_MULTIPLIER);
+        intialShareOfferingDurationInDays = intialShareOfferingDurationInDays.add(_extraDays);
         endOfInitalShareOffering.add(timeToAdd);
-        emit IsoDurationIncreaed(extraDays);
+        emit IsoDurationIncreaed(_extraDays);
     }
 
     // Create a buy order for NFT shares after the initial offering has ended
-    function placeBuyOrderForSoldShares(uint amountWillingToBuy, uint priceOfferedPerShare) external onlyIfNftNotRedeemed isoHasEnded {
-        require(amountWillingToBuy > 0, 'You need to place an order for more then 0 shares.');
-        require(priceOfferedPerShare > 0, 'You need to place an order for more then 0 shares.');
-        require(totalSupply() >= amountWillingToBuy, 'There are not enough shares out there to buy.');
+    function placeBuyOrderForSoldShares(uint _amountWillingToBuy, uint _priceOfferedPerShare) external onlyIfNftNotRedeemed isoHasEnded {
+        require(_amountWillingToBuy > 0, 'You need to place an order for more then 0 shares.');
+        require(_priceOfferedPerShare > 0, 'You need to place an order for more then 0 shares.');
+        require(totalSupply() >= _amountWillingToBuy, 'There are not enough shares out there to buy.');
 
-        uint totalOrderAmount = amountWillingToBuy * priceOfferedPerShare;
+        uint totalOrderAmount = _amountWillingToBuy * _priceOfferedPerShare;
         require(tokenToBuyWIth.balanceOf(msg.sender) >= totalOrderAmount, 'You have not enough tokens to place the buy order.');
 
         tokenToBuyWIth.safeTransferFrom(msg.sender, address(this), totalOrderAmount);
-        BuyOrder memory createdOrder = BuyOrder({ amountToBuy: amountWillingToBuy, pricePerShare: priceOfferedPerShare });
+        BuyOrder memory createdOrder = BuyOrder({ amountToBuy: _amountWillingToBuy, pricePerShare: _priceOfferedPerShare });
         buyOrders[msg.sender] = createdOrder;
-        emit OrderPlaced(msg.sender, totalOrderAmount, amountWillingToBuy);
+        emit OrderPlaced(msg.sender, totalOrderAmount, _amountWillingToBuy);
     }
 
     // Cancel the buy order you placed
@@ -202,19 +202,19 @@ contract NftSharesV1 is ERC20 {
     }
 
     // Sell you NFT shares to one of the buy orders
-    function sellNftShare(address buyOrder, uint amountOfSharesToSell) external isoHasEnded {
-        require(balanceOf(msg.sender) >= amountOfSharesToSell, 'You dont have enough Nft shares to sell.');
-        require(buyOrders[buyOrder].amountToBuy >= amountOfSharesToSell, 'This order does not want to buy enough shares.');
+    function sellNftShare(address _buyOrder, uint _amountOfSharesToSell) external isoHasEnded {
+        require(balanceOf(msg.sender) >= _amountOfSharesToSell, 'You dont have enough Nft shares to sell.');
+        require(buyOrders[_buyOrder].amountToBuy >= _amountOfSharesToSell, 'This order does not want to buy enough shares.');
         
-        uint totalAmountToReceive = amountOfSharesToSell * buyOrders[buyOrder].pricePerShare;
+        uint totalAmountToReceive = _amountOfSharesToSell * buyOrders[_buyOrder].pricePerShare;
         uint feeAmount = totalAmountToReceive.mul(DefihubConstants.NFT_SHARES_FEE_BP).div(DefihubConstants.BASE_POINTS);
         uint amountForSeller = totalAmountToReceive.sub(feeAmount);
 
-        transferFrom(msg.sender, buyOrder, amountOfSharesToSell);
+        transferFrom(msg.sender, _buyOrder, _amountOfSharesToSell);
         tokenToBuyWIth.safeTransfer(msg.sender, amountForSeller);
         tokenToBuyWIth.safeTransfer(DefihubConstants.FEE_ADDRESS, feeAmount);
-        buyOrders[buyOrder].amountToBuy = buyOrders[buyOrder].amountToBuy.sub(amountOfSharesToSell);
-        emit NftShareSold(totalAmountToReceive, amountOfSharesToSell);
+        buyOrders[_buyOrder].amountToBuy = buyOrders[_buyOrder].amountToBuy.sub(_amountOfSharesToSell);
+        emit NftShareSold(totalAmountToReceive, _amountOfSharesToSell);
     }
 
     // If you own all NFT shares you can redeem the underlying NFT
@@ -231,11 +231,11 @@ contract NftSharesV1 is ERC20 {
     /*********************
             EVENTS 
     *********************/
-    event NftRedeemed(bool success);
-    event succesfullyWithdrawn(bool success);
-    event IsoDurationIncreaed(uint durationAdded);
-    event NftShareSold(uint totalAmountToReceive, uint amountSold);
-    event orderCanceled(address indexed user, uint amountReceived);
-    event OrderPlaced(address indexed user, uint amountInContract, uint amountToReceive);
-    event boughtSharesFromIso(address indexed user, uint amountBought, uint amountPaid);
+    event NftRedeemed(bool _success);
+    event succesfullyWithdrawn(bool _success);
+    event IsoDurationIncreaed(uint _durationAdded);
+    event NftShareSold(uint _totalAmountToReceive, uint _amountSold);
+    event orderCanceled(address indexed _user, uint _amountReceived);
+    event OrderPlaced(address indexed _user, uint _amountInContract, uint amountToReceive);
+    event boughtSharesFromIso(address indexed _user, uint _amountBought, uint _amountPaid);
 }

@@ -3,6 +3,6 @@
 pragma solidity ^0.7.3;
 
 interface IFarmAsAServiceV1 {
-    function increaseRewardsAndFarmDuration(uint reward) external;
-    function increaseRewards(uint reward) external;
+    function increaseRewardsAndFarmDuration(uint _reward) external;
+    function increaseRewards(uint _reward) external;
 }

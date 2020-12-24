@@ -62,13 +62,13 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         _;
     }
 
-    modifier updateReward(address account) {
+    modifier updateReward(address _account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
 
-        if (account != address(0)) {
-            rewards[account] = earned(account);
-            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        if (_account != address(0)) {
+            rewards[_account] = earned(_account);
+            userRewardPerTokenPaid[_account] = rewardPerTokenStored;
         }
         _;
     }
@@ -139,8 +139,8 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     }
 
     // Returns the rewards earned for an address
-    function earned(address account) public view returns (uint) {
-        uint calculatedEarned = _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(rawardsTokenDecimals).add(rewards[account]);
+    function earned(address _account) public view returns (uint) {
+        uint calculatedEarned = _balances[_account].mul(rewardPerToken().sub(userRewardPerTokenPaid[_account])).div(rawardsTokenDecimals).add(rewards[_account]);
 
         // some rare case the reward can be slightly bigger than real number, we need to check against how much we have left in pool
         uint poolBalance = rewardsToken.balanceOf(address(this));
@@ -154,12 +154,12 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     **************************/
     
     // Stake your tokens and start farming
-    function stake(uint amount) external farmIsActive nonReentrant updateReward(msg.sender) {
-        require(amount > 0, "Cannot stake 0");
+    function stake(uint _amount) external farmIsActive nonReentrant updateReward(msg.sender) {
+        require(_amount > 0, "Cannot stake 0");
 
         // Calculate the fee and the amount to stake
-        uint fee = amount.mul(DefihubConstants.FAAS_ENTRANCE_FEE_BP).div(DefihubConstants.BASE_POINTS);
-        uint stakingAmount = amount.sub(fee);
+        uint fee = _amount.mul(DefihubConstants.FAAS_ENTRANCE_FEE_BP).div(DefihubConstants.BASE_POINTS);
+        uint stakingAmount = _amount.sub(fee);
 
         // Add staking amount to the balance and total supply 
         _totalSupply = _totalSupply.add(stakingAmount);
@@ -168,22 +168,22 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         // Transfer the staking amount to the contract and the fee to the fee address
         stakingToken.safeTransferFrom(msg.sender, address(this), stakingAmount);
         stakingToken.safeTransferFrom(msg.sender, DefihubConstants.FEE_ADDRESS, fee);
-        emit Staked(msg.sender, amount);
+        emit Staked(msg.sender, _amount);
     }
 
     // Withdraw your tokens from the farm and claimRewards
-    function withdraw(uint amount) public nonReentrant updateReward(msg.sender) {
-        require(amount > 0, "Cannot withdraw 0");
-        require(_balances[msg.sender] >= amount, "You want to withdraw more then you own");
+    function withdraw(uint _amount) public nonReentrant updateReward(msg.sender) {
+        require(_amount > 0, "Cannot withdraw 0");
+        require(_balances[msg.sender] >= _amount, "You want to withdraw more then you own");
 
         // Remove the amount from the total supply and address balance
-        _totalSupply = _totalSupply.sub(amount);
-        _balances[msg.sender] = _balances[msg.sender].sub(amount);
+        _totalSupply = _totalSupply.sub(_amount);
+        _balances[msg.sender] = _balances[msg.sender].sub(_amount);
 
         // Transfer the tokens back to the address
-        stakingToken.safeTransfer(msg.sender, amount);
+        stakingToken.safeTransfer(msg.sender, _amount);
         claimRewards();
-        emit Withdrawn(msg.sender, amount);
+        emit Withdrawn(msg.sender, _amount);
     }
 
     // Claim rewards
@@ -207,19 +207,19 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     **************************/
 
     // Increase the farm rewards and reset the farm duration
-    function increaseRewardsAndFarmDuration(uint reward) public override farmIsActive onlyFactory updateReward(address(0)) {
-        require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
+    function increaseRewardsAndFarmDuration(uint _reward) public override farmIsActive onlyFactory updateReward(address(0)) {
+        require(rewardsToken.balanceOf(farmAdmin) >= _reward, 'You dont have enough tokens to add!');
         
         if (rewardRate == 0) {
-            rewardRate = reward.div(rewardsDuration);
+            rewardRate = _reward.div(rewardsDuration);
         } else {
             uint remaining = farmingEndDate.sub(block.timestamp);
             uint leftover = remaining.mul(rewardRate);
-            rewardRate = reward.add(leftover).div(rewardsDuration);
+            rewardRate = _reward.add(leftover).div(rewardsDuration);
         }
 
         // Transfer the rewards to the contract
-        rewardsToken.safeTransferFrom(farmAdmin, address(this), reward);
+        rewardsToken.safeTransferFrom(farmAdmin, address(this), _reward);
 
 
         // Ensure the provided reward amount is not more than the balance in the contract + the withdrawn amount.
@@ -234,16 +234,16 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     }
 
     // Increase the farm rewards but leave the duration as is
-    function increaseRewards(uint reward) public override farmIsActive onlyFactory updateReward(address(0)) {
-        require(rewardsToken.balanceOf(farmAdmin) >= reward, 'You dont have enough tokens to add!');
+    function increaseRewards(uint _reward) public override farmIsActive onlyFactory updateReward(address(0)) {
+        require(rewardsToken.balanceOf(farmAdmin) >= _reward, 'You dont have enough tokens to add!');
         require(rewardRate != 0, 'First add rewards before increasing the emission rate by adding more rewards!');
         
         uint remainingRewardDuration = farmingEndDate.sub(block.timestamp);
         uint leftover = remainingRewardDuration.mul(rewardRate);
-        rewardRate = reward.add(leftover).div(remainingRewardDuration);
+        rewardRate = _reward.add(leftover).div(remainingRewardDuration);
 
         // Transfer the rewards to the contract
-        rewardsToken.safeTransferFrom(farmAdmin, address(this), reward);
+        rewardsToken.safeTransferFrom(farmAdmin, address(this), _reward);
 
 
         // Ensure the provided reward amount is not more than the balance in the contract + the withdrawn amount.
