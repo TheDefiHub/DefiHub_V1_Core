@@ -3,7 +3,7 @@
 pragma solidity ^0.7.1;
 
 import "./TokenAsAServiceV1.sol";
-import "./ITokenAsAServiceV1Factory.sol";
+import "./interfaces/ITokenAsAServiceV1Factory.sol";
 
 contract TokenAsAServiceV1Factory is ITokenAsAServiceV1Factory {
     function createNewToken(

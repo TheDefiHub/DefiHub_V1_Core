@@ -3,7 +3,7 @@
 pragma solidity ^0.7.3;
 
 import './DefihubConstants.sol';
-import './IFarmAsAServiceV1.sol';
+import './interfaces/IFarmAsAServiceV1.sol';
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/Math.sol";

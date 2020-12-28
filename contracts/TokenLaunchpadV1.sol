@@ -10,9 +10,9 @@
 pragma solidity ^0.7.1;
 
 import "./FarmAsAServiceV1.sol";
-import "./IFarmAsAServiceV1.sol";
-import "./ITokenAsAServiceV1Factory.sol";
-import "./ITokenLaunchPad.sol";
+import "./interfaces/IFarmAsAServiceV1.sol";
+import "./interfaces/ITokenAsAServiceV1Factory.sol";
+import "./interfaces/ITokenLaunchPad.sol";
 
 // Openzeppelin import
 import "@openzeppelin/contracts/math/Math.sol";
