@@ -11,44 +11,77 @@ pragma solidity ^0.7.1;
 
 import "./FarmAsAServiceV1.sol";
 import "./IFarmAsAServiceV1.sol";
+import "./ITokenAsAServiceV1Factory.sol";
+import "./ITokenLaunchPad.sol";
 
 // Openzeppelin import
 import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-contract FarmAsAServiceV1Factory {
+contract TokenLaunchpadV1 is ITokenLaunchPad {
 
     using SafeMath for uint;
 
     // The native token of the DefiHub project
     address defiHubTokenAddress;
 
+    address tokenFactory;
+
     // tokenToFarm => (tokenToFarmWith => CreatedFarm)
     mapping (address => mapping (address => address)) createdTokenFarms;
-        
-    // CreatedFarm => FarmAdmin
-    mapping (address => address) farmAdmins;
 
     // CreatedFarm => DefiHubFarm
     mapping (address => address) defiHubFarmCouples;
 
+    // TokenAddress => bool
+    mapping (address => bool) tokenAsAServiceTokens;
+
     // Constrcutor sets the address of the native DefiHub token
-    constructor(address _defiHubTokenAddress) {
+    constructor(address _defiHubTokenAddress, address _tokenFactory) {
         defiHubTokenAddress = _defiHubTokenAddress;
+        tokenFactory = _tokenFactory;
+    }
+
+    function createToken(
+        string memory _tokenName,
+        string memory _tokenSymbol,
+        uint _initialSupply,
+        uint _initialOwnerShare,
+        bool _initialSupplyIsMaxSupply
+    ) external {
+        address token = ITokenAsAServiceV1Factory(tokenFactory).createNewToken(           
+            msg.sender,
+            address(this),
+            _tokenName,
+            _tokenSymbol,
+            _initialSupply,
+            _initialOwnerShare,
+            _initialSupplyIsMaxSupply);
+
+
+        tokenAsAServiceTokens[address(token)] = true;
+
+        emit tokenCreated(address(token));
     }
 
     // Function to create a new farm
     function createNewFarm(
+        address _tokenOwner,
         address _rewardsToken,
         address _stakingToken,
         uint _rewardsDurationInDays,
         uint _rawardsTokenDecimals,
         uint _totalRwards
-    ) external returns (address[2] memory) {
+    ) external override {
+
+        // Check if the farm gets created by a Token As A Service token
+        require(tokenAsAServiceTokens[msg.sender] == true, 'Onlt TaaS allowed');
+        require(msg.sender == _rewardsToken, 'Not alloed');
+
         // First we check if this farm is already created and if there are enought fund to add to the farm
-        require(createdTokenFarms[_rewardsToken][_stakingToken] == address(0), 'This token farm already exists!');
-        require(IERC20(_stakingToken).balanceOf(msg.sender) >= _totalRwards, 'You want to add a higher amount of tokens to farm then you seem to have...');
+        require(createdTokenFarms[_rewardsToken][_stakingToken] == address(0), 'Farm already exists');
+        require(IERC20(_rewardsToken).balanceOf(msg.sender) >= _totalRwards, 'Not enough funds');
 
         // Take 20% of the rewards and reserve them for the DefiHub native ntoken farm
         uint rewardsForDefiHubFarms = _totalRwards.div(100).mul(20);
@@ -57,7 +90,7 @@ contract FarmAsAServiceV1Factory {
         // Create the farm
         FarmAsAServiceV1 createdFarm = new FarmAsAServiceV1(
             address(this),
-            msg.sender,
+            _tokenOwner,
             _rewardsToken,
             _stakingToken,
             _rewardsDurationInDays,
@@ -70,7 +103,7 @@ contract FarmAsAServiceV1Factory {
             // If there is no DefiHub farm create it
             FarmAsAServiceV1 defiHubFarm = new FarmAsAServiceV1(
                 address(this),
-                msg.sender,
+                _tokenOwner,
                 _rewardsToken,
                 defiHubTokenAddress,
                 _rewardsDurationInDays,
@@ -81,7 +114,6 @@ contract FarmAsAServiceV1Factory {
             // Set mappings for the created farm
             address createdDefiHubFarmAddress = address(defiHubFarm);
             createdTokenFarms[_rewardsToken][defiHubTokenAddress] = createdDefiHubFarmAddress;
-            farmAdmins[createdDefiHubFarmAddress] = msg.sender;
         } else {
             // If there already is a farm add the fund to it
             IFarmAsAServiceV1(createdTokenFarms[_rewardsToken][defiHubTokenAddress]).increaseRewards(rewardsForDefiHubFarms);
@@ -91,22 +123,20 @@ contract FarmAsAServiceV1Factory {
         // Set all the mappings
         address createdFarmAddress = address(createdFarm);
         createdTokenFarms[_rewardsToken][_stakingToken] = createdFarmAddress;
-        farmAdmins[createdFarmAddress] = msg.sender;
         defiHubFarmCouples[createdFarmAddress] = createdTokenFarms[_rewardsToken][defiHubTokenAddress];
         defiHubFarmCouples[createdTokenFarms[_rewardsToken][defiHubTokenAddress]] = createdFarmAddress;
-        return [address(createdFarm), address(createdTokenFarms[_rewardsToken][defiHubTokenAddress])];
     }
 
     // Adding funds goes in a 20/80 split between the DefiHun token farm and the farm with the other token
     // This function will also reset the farm duration to its initial duration.
     // So if the farm lastes for 100 days, that will now run a 100 days after you called this function and added rewards
-    function addRewardsAndDuration(address _farmToUpdate, uint _extraRewards) external {
-        require(farmAdmins[_farmToUpdate] == msg.sender, 'You are not the admin of this farm');
-        
+    function addRewardsAndDuration(address _farmToUpdate, uint _extraRewards) external override {
+        require(tokenAsAServiceTokens[msg.sender] == true, 'Not allowed');
+
         uint rewardsForDefiHubFarms = _extraRewards.div(5);
         uint rewardsForDeployerFarm = _extraRewards.sub(rewardsForDefiHubFarms);
 
-        require(rewardsForDefiHubFarms + rewardsForDeployerFarm <= _extraRewards, 'Provide an amount dividable by 5 without decimals to prevent overflow');
+        require(rewardsForDefiHubFarms + rewardsForDeployerFarm <= _extraRewards, 'Overflow danger, change amount');
             
         IFarmAsAServiceV1(_farmToUpdate).increaseRewardsAndFarmDuration(rewardsForDeployerFarm);
         IFarmAsAServiceV1(defiHubFarmCouples[_farmToUpdate]).increaseRewardsAndFarmDuration(rewardsForDefiHubFarms);
@@ -115,8 +145,8 @@ contract FarmAsAServiceV1Factory {
 
     // Adding funds goes in a 20/80 split between the DefiHun token farm and the farm with the other token
     // You will add funds and increase the rewardRate with this function, the lefotover duration of the farm stays as is
-    function addRewardsWithoutAddingDuration(address _farmToUpdate, uint _extraRewards) external {
-        require(farmAdmins[_farmToUpdate] == msg.sender, 'You are not the admin of this farm');
+    function addRewardsWithoutAddingDuration(address _farmToUpdate, uint _extraRewards) external override {
+        require(tokenAsAServiceTokens[msg.sender] == true, 'Not allowed');
         
         uint rewardsForDefiHubFarms = _extraRewards.div(5);
         uint rewardsForDeployerFarm = _extraRewards.sub(rewardsForDefiHubFarms);
@@ -132,6 +162,7 @@ contract FarmAsAServiceV1Factory {
              Events 
     **************************/
     event rewardsAdded(uint _amount);
+    event tokenCreated(address _tokenAddress);
 
 
 }

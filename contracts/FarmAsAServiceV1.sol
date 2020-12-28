@@ -26,7 +26,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     address farmFactory;
     address farmAdmin;
 
-    IERC20 public rewardsToken;
+    address public rewardsToken;
     IERC20 public stakingToken;
     uint public rawardsTokenDecimals;
     uint public farmingEndDate = 0;
@@ -89,7 +89,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         uint _RewardsAmount
     ) {
         // Set token
-        rewardsToken = IERC20(_rewardsToken);
+        rewardsToken = _rewardsToken;
         stakingToken = IERC20(_stakingToken);
 
         // Set farm factory and admin
@@ -115,7 +115,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
 
     // Rewards left in the contract 
     function totalRewardsLeft() external view returns (uint) {
-        return rewardsToken.balanceOf(address(this));
+        return IERC20(rewardsToken).balanceOf(address(this));
     }
 
     // Staked balnce of an address
@@ -143,7 +143,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         uint calculatedEarned = _balances[_account].mul(rewardPerToken().sub(userRewardPerTokenPaid[_account])).div(rawardsTokenDecimals).add(rewards[_account]);
 
         // some rare case the reward can be slightly bigger than real number, we need to check against how much we have left in pool
-        uint poolBalance = rewardsToken.balanceOf(address(this));
+        uint poolBalance = IERC20(rewardsToken).balanceOf(address(this));
         return (calculatedEarned < poolBalance) ? calculatedEarned : poolBalance;
     }
 
@@ -195,7 +195,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         if (reward > 0) {
             // Set user rewards to 0 and transfer the claimable rewards
             rewards[msg.sender] = 0;
-            rewardsToken.safeTransfer(msg.sender, reward);
+            IERC20(rewardsToken).safeTransfer(msg.sender, reward);
 
             emit RewardPaid(msg.sender, reward);
         }
@@ -208,7 +208,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
 
     // Increase the farm rewards and reset the farm duration
     function increaseRewardsAndFarmDuration(uint _reward) public override farmIsActive onlyFactory updateReward(address(0)) {
-        require(rewardsToken.balanceOf(farmAdmin) >= _reward, 'You dont have enough tokens to add!');
+        require(IERC20(rewardsToken).balanceOf(rewardsToken) >= _reward, 'You dont have enough tokens to add!');
         
         if (rewardRate == 0) {
             rewardRate = _reward.div(rewardsDuration);
@@ -219,14 +219,14 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         }
 
         // Transfer the rewards to the contract
-        rewardsToken.safeTransferFrom(farmAdmin, address(this), _reward);
+        IERC20(rewardsToken).safeTransferFrom(rewardsToken, address(this), _reward);
 
 
         // Ensure the provided reward amount is not more than the balance in the contract + the withdrawn amount.
         // This keeps the reward rate in the right range, preventing overflows due to
         // very high values of rewardRate in the earned and rewardsPerToken functions;
         // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-        require(rewardRate <= rewardsToken.balanceOf(address(this)).div(rewardsDuration), "Provided reward too high this will create overflow");
+        require(rewardRate <= IERC20(rewardsToken).balanceOf(address(this)).div(rewardsDuration), "Provided reward too high this will create overflow");
 
         // Set last update time and reset farmingEndDate
         lastUpdateTime = block.timestamp;
@@ -235,7 +235,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
 
     // Increase the farm rewards but leave the duration as is
     function increaseRewards(uint _reward) public override farmIsActive onlyFactory updateReward(address(0)) {
-        require(rewardsToken.balanceOf(farmAdmin) >= _reward, 'You dont have enough tokens to add!');
+        require(IERC20(rewardsToken).balanceOf(rewardsToken) >= _reward, 'You dont have enough tokens to add!');
         require(rewardRate != 0, 'First add rewards before increasing the emission rate by adding more rewards!');
         
         uint remainingRewardDuration = farmingEndDate.sub(block.timestamp);
@@ -243,14 +243,14 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
         rewardRate = _reward.add(leftover).div(remainingRewardDuration);
 
         // Transfer the rewards to the contract
-        rewardsToken.safeTransferFrom(farmAdmin, address(this), _reward);
+        IERC20(rewardsToken).safeTransferFrom(rewardsToken, address(this), _reward);
 
 
         // Ensure the provided reward amount is not more than the balance in the contract + the withdrawn amount.
         // This keeps the reward rate in the right range, preventing overflows due to
         // very high values of rewardRate in the earned and rewardsPerToken functions;
         // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-        require(rewardRate <= rewardsToken.balanceOf(address(this)).div(remainingRewardDuration), "Provided reward too high this will create overflow");
+        require(rewardRate <= IERC20(rewardsToken).balanceOf(address(this)).div(remainingRewardDuration), "Provided reward too high this will create overflow");
 
         lastUpdateTime = block.timestamp;
     }
@@ -267,9 +267,9 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     function withdrawLeftovers() public onlyAdmin {
         require(block.timestamp > farmingEndDate, 'The farm needs to have ended before you can take out leftovers!');
         require(_totalSupply == 0, 'All funds need to be withdrawn before you can claim leftovers!');
-        uint amountLeft = rewardsToken.balanceOf(address(this));
+        uint amountLeft = IERC20(rewardsToken).balanceOf(address(this));
         if (amountLeft > 0) {
-            rewardsToken.safeTransfer(farmAdmin, amountLeft);
+            IERC20(rewardsToken).safeTransfer(farmAdmin, amountLeft);
             emit RewardPaid(farmAdmin, amountLeft);
         }
 
