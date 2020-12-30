@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-// This is the V1 of the Farming as a service factory contract.
+// This is the V1 of the token launch pad contract.
+// The contract can create a token for you and can create farms for that token
 // The contract creates a farm for you with the farming token and reward token you specify
 // The farming token can be any valid ERC20 token, this includes LP tokens from UniSwap and other exchanges
 // For rewardToken the contract also creates a fram with the DefiHub as a farming token
@@ -37,12 +38,15 @@ contract TokenLaunchpadV1 is ITokenLaunchPad {
     // TokenAddress => bool
     mapping (address => bool) tokenAsAServiceTokens;
 
+    modifier onlyDefiHubTokens(address addr) {
+        require(tokenAsAServiceTokens[addr] == true, 'Only DefiHub tokens are allowed');
+        _;
+    }
+
     // Constrcutor sets the address of the native DefiHub token
     constructor(address _defiHubTokenAddress, address _tokenFactory) {
         defiHubTokenAddress = _defiHubTokenAddress;
         tokenFactory = _tokenFactory;
-        tokenAsAServiceTokens[defiHubTokenAddress] = true;
-        
     }
 
     function createToken(
@@ -59,7 +63,8 @@ contract TokenLaunchpadV1 is ITokenLaunchPad {
             _tokenSymbol,
             _initialSupply,
             _initialOwnerShare,
-            _initialSupplyIsMaxSupply);
+            _initialSupplyIsMaxSupply
+        );
 
 
         tokenAsAServiceTokens[address(token)] = true;
@@ -75,10 +80,9 @@ contract TokenLaunchpadV1 is ITokenLaunchPad {
         uint _rewardsDurationInDays,
         uint _rawardsTokenDecimals,
         uint _totalRwards
-    ) external override {
+    ) external override onlyDefiHubTokens(msg.sender) {
 
         // Check if the farm gets created by a Token As A Service token
-        require(tokenAsAServiceTokens[msg.sender] == true, 'Onlt TaaS allowed');
         require(msg.sender == _rewardsToken, 'Not alloed');
 
         // First we check if this farm is already created and if there are enought fund to add to the farm
@@ -132,9 +136,7 @@ contract TokenLaunchpadV1 is ITokenLaunchPad {
     // Adding funds goes in a 20/80 split between the DefiHun token farm and the farm with the other token
     // This function will also reset the farm duration to its initial duration.
     // So if the farm lastes for 100 days, that will now run a 100 days after you called this function and added rewards
-    function addRewardsAndDuration(address _farmToUpdate, uint _extraRewards) external override {
-        require(tokenAsAServiceTokens[msg.sender] == true, 'Not allowed');
-
+    function addRewardsAndDuration(address _farmToUpdate, uint _extraRewards) external override onlyDefiHubTokens(msg.sender) {
         uint rewardsForDefiHubFarms = _extraRewards.div(5);
         uint rewardsForDeployerFarm = _extraRewards.sub(rewardsForDefiHubFarms);
 
@@ -147,9 +149,7 @@ contract TokenLaunchpadV1 is ITokenLaunchPad {
 
     // Adding funds goes in a 20/80 split between the DefiHun token farm and the farm with the other token
     // You will add funds and increase the rewardRate with this function, the lefotover duration of the farm stays as is
-    function addRewardsWithoutAddingDuration(address _farmToUpdate, uint _extraRewards) external override {
-        require(tokenAsAServiceTokens[msg.sender] == true, 'Not allowed');
-        
+    function addRewardsWithoutAddingDuration(address _farmToUpdate, uint _extraRewards) external override onlyDefiHubTokens(msg.sender) {        
         uint rewardsForDefiHubFarms = _extraRewards.div(5);
         uint rewardsForDeployerFarm = _extraRewards.sub(rewardsForDefiHubFarms);
 
