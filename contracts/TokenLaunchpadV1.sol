@@ -41,6 +41,8 @@ contract TokenLaunchpadV1 is ITokenLaunchPad {
     constructor(address _defiHubTokenAddress, address _tokenFactory) {
         defiHubTokenAddress = _defiHubTokenAddress;
         tokenFactory = _tokenFactory;
+        tokenAsAServiceTokens[defiHubTokenAddress] = true;
+        
     }
 
     function createToken(
