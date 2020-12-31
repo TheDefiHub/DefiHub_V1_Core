@@ -172,7 +172,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     }
 
     // Withdraw your tokens from the farm and claimRewards
-    function withdraw(uint _amount) public nonReentrant updateReward(msg.sender) {
+    function withdraw(uint _amount) external nonReentrant updateReward(msg.sender) {
         require(_amount > 0, "Cannot withdraw 0");
         require(_balances[msg.sender] >= _amount, "You want to withdraw more then you own");
 
@@ -234,7 +234,7 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
     }
 
     // Increase the farm rewards but leave the duration as is
-    function increaseRewards(uint _reward) public override farmIsActive onlyFactory updateReward(address(0)) {
+    function increaseRewards(uint _reward) external override farmIsActive onlyFactory updateReward(address(0)) {
         require(IERC20(rewardsToken).balanceOf(rewardsToken) >= _reward, 'You dont have enough tokens to add!');
         require(rewardRate != 0, 'First add rewards before increasing the emission rate by adding more rewards!');
         
@@ -258,13 +258,13 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
 
 
     /**************************
-       Only factory functions 
+       Only admin functions 
     **************************/
 
     // In some cases a farm can have an X amount of time with no farmers while the farm is active
     // If this is the case there will be left over rewards the admin can claim back
     // There can also be small left overs due to rondings in the calculations
-    function withdrawLeftovers() public onlyAdmin {
+    function withdrawLeftovers() external onlyAdmin {
         require(block.timestamp > farmingEndDate, 'The farm needs to have ended before you can take out leftovers!');
         require(_totalSupply == 0, 'All funds need to be withdrawn before you can claim leftovers!');
         uint amountLeft = IERC20(rewardsToken).balanceOf(address(this));
@@ -273,6 +273,10 @@ contract FarmAsAServiceV1 is ReentrancyGuard, IFarmAsAServiceV1 {
             emit RewardPaid(farmAdmin, amountLeft);
         }
 
+    }
+
+    function changeFarmAdmin(address newAdmin) external onlyAdmin {
+        farmAdmin = newAdmin;
     }
 
 

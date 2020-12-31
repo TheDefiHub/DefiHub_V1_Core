@@ -80,7 +80,7 @@ contract TokenLaunchpadV1 is ITokenLaunchPad {
         uint _rewardsDurationInDays,
         uint _rawardsTokenDecimals,
         uint _totalRwards
-    ) external override onlyDefiHubTokens(msg.sender) {
+    ) external override onlyDefiHubTokens(msg.sender) returns (address[2] memory) {
 
         // Check if the farm gets created by a Token As A Service token
         require(msg.sender == _rewardsToken, 'Not alloed');
@@ -131,6 +131,7 @@ contract TokenLaunchpadV1 is ITokenLaunchPad {
         createdTokenFarms[_rewardsToken][_stakingToken] = createdFarmAddress;
         defiHubFarmCouples[createdFarmAddress] = createdTokenFarms[_rewardsToken][defiHubTokenAddress];
         defiHubFarmCouples[createdTokenFarms[_rewardsToken][defiHubTokenAddress]] = createdFarmAddress;
+        return [createdFarmAddress, createdTokenFarms[_rewardsToken][defiHubTokenAddress]];
     }
 
     // Adding funds goes in a 20/80 split between the DefiHun token farm and the farm with the other token

@@ -10,7 +10,7 @@ interface ITokenLaunchPad {
         uint _rewardsDurationInDays,
         uint _rawardsTokenDecimals,
         uint _totalRwards
-    ) external;
+    ) external returns (address[2] memory);
     function addRewardsAndDuration(address _farmToUpdate, uint _extraRewards) external;
     function addRewardsWithoutAddingDuration(address _farmToUpdate, uint _extraRewards) external;
 }

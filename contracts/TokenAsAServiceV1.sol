@@ -52,7 +52,7 @@ contract TokenAsAServiceV1 is ERC20 {
         address _stakingToken, 
         uint _rewardsDurationInDays,
         uint _totalRwards
-    ) public {
+    ) external {
         require(farmManagers[msg.sender] == true, 'Only farm managers are allowed to do this');
         if (initialSupplyIsMaxSupply) {
             uint currantSupply = totalSupply();
@@ -79,7 +79,7 @@ contract TokenAsAServiceV1 is ERC20 {
         address _tokenFarm,
         uint _extraRewards,
         bool _increaseRewardRate
-    ) public {
+    ) external {
         require(farmManagers[msg.sender] == true, 'Only farm managers are allowed to do this');
 
         // First check if we dont add to much token in case there is a max supply for the token
@@ -101,19 +101,19 @@ contract TokenAsAServiceV1 is ERC20 {
     }
 
     // CHange the token owner
-    function setTokenOwner(address _owner) public {
+    function setTokenOwner(address _owner) external {
         require(msg.sender == tokenOwner, "!Only the owner can do this");
         tokenOwner = _owner;
     }
 
     // Add farm managers
-    function addFarmManager(address _manager) public {
+    function addFarmManager(address _manager) external {
         require(msg.sender == tokenOwner, "!Only the owner can add farm manager");
         farmManagers[_manager] = true;
     }
 
     // Remove farm managers
-    function removeMinter(address _manager) public {
+    function removeFarmManager(address _manager) external {
         require(msg.sender == tokenOwner, "!Only the owner can remove farm managers");
         farmManagers[_manager] = false;
     }
