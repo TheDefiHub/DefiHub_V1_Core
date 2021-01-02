@@ -41,7 +41,7 @@ contract DefiHubFarm is ReentrancyGuard {
         address _admin,
         address _rewardsToken,
         address _stakingToken
-    ) public {
+    ) {
         rewardsToken = IERC20(_rewardsToken);
         stakingToken = IERC20(_stakingToken);
         admin = _admin;
