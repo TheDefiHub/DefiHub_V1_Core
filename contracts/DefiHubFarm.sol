@@ -91,6 +91,7 @@ contract DefiHubFarm is ReentrancyGuard {
 
     function withdraw(uint256 amount) public nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
+        getReward();
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
         stakingToken.safeTransfer(msg.sender, amount);
@@ -104,11 +105,6 @@ contract DefiHubFarm is ReentrancyGuard {
             rewardsToken.safeTransfer(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
-    }
-
-    function exit() external {
-        withdraw(_balances[msg.sender]);
-        getReward();
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
