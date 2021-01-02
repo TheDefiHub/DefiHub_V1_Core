@@ -10,9 +10,9 @@ contract DefiHubToken is ERC20 {
 
     address public governance;
 
-    constructor (address _governance) ERC20("DefiHub", "DFH") {
+    constructor (address _governance, uint _amount) ERC20("DefiHub", "DFH") {
         governance = _governance;
-        _mint(_governance, 1000000 * (10**18))
+        _mint(_governance, _amount);
     }
 
     function setGovernance(address _governance) public {
