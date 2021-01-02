@@ -9,32 +9,14 @@ contract DefiHubToken is ERC20 {
     using Address for address;
 
     address public governance;
-    uint maxSupply = 10000000 * (10**18); // 10 Million max supply
-    mapping (address => bool) public minters;
 
-    constructor () ERC20("DefiHub", "DFH") {
-        governance = msg.sender;
-        minters[msg.sender] = true;
-    }
-
-    function mint(address account, uint amount) public {
-        require(minters[msg.sender], "!minter");
-        require(totalSupply() + amount <= maxSupply, "!minter");
-        _mint(account, amount);
+    constructor (address _governance) ERC20("DefiHub", "DFH") {
+        governance = _governance;
+        _mint(_governance, 1000000 * (10**18))
     }
 
     function setGovernance(address _governance) public {
         require(msg.sender == governance, "!governance");
         governance = _governance;
-    }
-
-    function addMinter(address _minter) public {
-        require(msg.sender == governance, "!governance");
-        minters[_minter] = true;
-    }
-
-    function removeMinter(address _minter) public {
-        require(msg.sender == governance, "!governance");
-        minters[_minter] = false;
     }
 }

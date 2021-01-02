@@ -37,7 +37,7 @@ contract TokenAsAServiceV1 is ERC20 {
         
         // Calculate the share of tokens for the owner of the token, mint them and send the tokens to his address
         uint sharesForOwner = _initialSupply.div(100).mul(_initialOwnerShare);
-        _mint(msg.sender, sharesForOwner);
+        _mint(_tokenOwner, sharesForOwner);
 
         initialSupply = _initialSupply;
 

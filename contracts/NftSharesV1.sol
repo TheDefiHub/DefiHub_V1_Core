@@ -100,7 +100,7 @@ contract NftSharesV1 is ERC20 {
         // Set the NFT data and transfer it to the contract
         nftId = _nftId;
         nft = IERC721(_nftTokenAddress);
-        nft.transferFrom(msg.sender, address(this), nftId);
+        nft.transferFrom(_admin, address(this), nftId);
 
         // Set the token to buy the shares with
         tokenToBuyWIth = IERC20(_tokenToBuyWith);
